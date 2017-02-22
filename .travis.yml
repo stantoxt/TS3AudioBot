@@ -8,9 +8,19 @@ branches:
   only:
     - master
     - develop
+    - coverity_scan
+
+env:
+  global:
+   # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created
+   #   via the "travis encrypt" command using the project repo's public key
+   - secure: "C/kXFJlPYrePkPuF31IDYsIaPDqgUeiWWvSZZ94fwk2icPjMmAV8y6SMLIFXocoiAqqtBJJUg9jMRfoFOIAVNEwPqc9wddyT15iULkeU0Okh6dt1H9mFjoNHX90zf1gEF1RRWWO8v2zmBpAOGfRHHfK6NejTmrn4d+CGgLSkcvIBAtl5wMVoMoqrc4nXimI/mriul8IfFWjXd8eKmlyNyCG6/QFfapMvRVosraLZDuK0TgEwRPj/0qt8LwULkvETeOBca2bPyOreoDJDZj26BWVkOcV+RF3/rp5z1dCIPh77/ki2t7Dm0DO77PQgceYAQe26Jq3Gt91TQ4pp9ij7N7R95EG9xiduwoLXDjYRgN32O1Z8E+KlYvxXlR49JYgIVSpFS1XjZpYyvktyp4aLgCFkL85Y9B2jY3NLN0U8nFDafygqW0QxG0dO3QigEEyxYsKx/XW5Le+r1Ga2tNwJMpCqYqh5+zoip5xBxSqv7zRwvLSDzJ/2KEekVoqYfjQJcqsRoT7VFz7JrGAG5Q9+UVMIJgzjm/Q/AdsV/NpV8fTRtKHmkzNcfmq+3nmU4ZQmFQErrjppKgrMiitMNAkEM3S0vIO1ZUh09pfe/1uW54IWmhG+alzbeaJ+niaGBBRKwSZoibfnUECFJTAUftF/BRmprGwn6A8vbfWG5NUr2ik="
 
 git:
   depth: 1
+
+before_install:
+  - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
 
 install:
   - nuget restore TS3AudioBot.sln
@@ -23,3 +33,13 @@ script:
 after_script:
   - chmod u+x ts3notify.sh
   - ./ts3notify.sh
+
+addons:
+  coverity_scan:
+    project:
+      name: "Splamy/TS3AudioBot"
+      description: "TS3AudioBot uploaded from TravisCI"
+    notification_email: splamyn@gmail.com
+    build_command_prepend: "xbuild /t:Clean"
+    build_command: "xbuild /t:Rebuild /p:Configuration=Release TS3AudioBot.sln"
+    branch_pattern: coverity_scan
