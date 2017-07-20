@@ -143,7 +143,7 @@ namespace TS3Client.Full
 				if (Closed)
 					return;
 				
-				if (packetType != PacketType.Ack && packetType != PacketType.Ping && packetType != PacketType.Pong)
+				if (packetType != PacketType.Ack && packetType != PacketType.Ping && packetType != PacketType.Pong && packetType != PacketType.Voice && packetType != PacketType.VoiceWhisper)
 					Console.WriteLine("OUT:" + System.Text.Encoding.ASCII.GetString(packet));
 
 				var addFlags = PacketFlags.None;
