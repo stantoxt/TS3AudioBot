@@ -194,6 +194,8 @@ namespace TS3Client.Full
 					packet.ClientId = ClientId;
 				}
 
+				if (packet.PacketType != PacketType.Ack && packet.PacketType != PacketType.Ping && packet.PacketType != PacketType.Pong)
+					Console.WriteLine("OUT:" + System.Text.Encoding.ASCII.GetString(packet.Data));
 				ts3Crypt.Encrypt(packet);
 
 				if (packet.PacketType == PacketType.Command
@@ -278,10 +280,12 @@ namespace TS3Client.Full
 				packet = Ts3Crypt.GetIncommingPacket(buffer);
 				if (IsCommandPacketSet(packet))
 					continue;
-				
+
 				if (!ts3Crypt.Decrypt(packet))
 					continue;
 
+				if (packet.PacketType != PacketType.Ack && packet.PacketType != PacketType.Ping && packet.PacketType != PacketType.Pong)
+					Console.WriteLine("_IN:" + System.Text.Encoding.ASCII.GetString(packet.Data));
 				NetworkStats.LogInPacket(packet);
 
 				switch (packet.PacketType)
