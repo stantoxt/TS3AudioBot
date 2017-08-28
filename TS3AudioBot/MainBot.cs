@@ -1,4 +1,4 @@
-﻿// TS3AudioBot - An advanced Musicbot for Teamspeak 3
+// TS3AudioBot - An advanced Musicbot for Teamspeak 3
 // Copyright (C) 2016  TS3AudioBot contributors
 //
 // This program is free software: you can redistribute it and/or modify
@@ -41,6 +41,10 @@ namespace TS3AudioBot
 	{
 		internal static void Main(string[] args)
 		{
+			var x = new Database.DbProvider();
+			
+
+			return;
 			using (var bot = new MainBot())
 			{
 				AppDomain.CurrentDomain.UnhandledException += (s, e) =>

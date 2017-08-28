@@ -44,11 +44,6 @@ namespace TS3AudioBot.History
 			AudioResource = resource;
 		}
 
-		public void SetName(string newName)
-		{
-			AudioResource = AudioResource.WithName(newName);
-		}
-
 		public override string ToString()
 		{
 			return string.Format(CultureInfo.InvariantCulture, "[{0}] @ {1} by {2}: {3}, ({4})", Id, Timestamp, UserInvokeId, AudioResource.ResourceTitle, AudioResource);
