@@ -13,7 +13,10 @@ namespace TS3AudioBot.Database
 {
 	class DbProvider
 	{
+		private const int DbVersion = 1;
 		private const string connectionString = "Data Source=MyDatabase.sqlite;Version=3;";
+
+		private Table<DbMetaData> DbMetaData { get; set; }
 
 		public DbProvider()
 		{
@@ -22,55 +25,106 @@ namespace TS3AudioBot.Database
 				var ctx = new DataContext(sql);
 				ctx.Log = Console.Out;
 
-				//ctx.ExecuteCommand("DROP TABLE PlayHistory;");
-
-				ctx.ExecuteCommand(
-					"CREATE TABLE IF NOT EXISTS PlayHistory (" +
-					"  Id            INTEGER      NOT NULL," +
-					"  UserInvokeId  INTEGER      NOT NULL," +
-					"  PlayCount     INTEGER      NOT NULL," +
-					"  Timestamp     DATETIME     NOT NULL," +
-					"  AudioType     VARCHAR(16)  NOT NULL," +
-					"  ResourceId    TEXT         NOT NULL," +
-					"  ResourceTitle TEXT         NOT NULL," +
-					"  PRIMARY KEY (Id)" +
-					");"
-					);
-				ctx.SubmitChanges();
+				CheckDatabase(ctx);
 
 				var x = ctx.GetTable<AudioLogEntry2>();
 
 				//x.DeleteAllOnSubmit(from a in x select a);
 				//ctx.SubmitChanges();
 
-				x.InsertOnSubmit(new AudioLogEntry2(new AudioResource("asdf", "sc_ar1", AudioType.Soundcloud))
+				if (!(from a in x where a.Id == 0 select a).Any())
 				{
-					Id = 0,
-					PlayCount = 0,
-					Timestamp = DateTime.Now,
-					UserInvokeId = 42,
-				});
+					x.InsertOnSubmit(new AudioLogEntry2(new AudioResource("asdf", "sc_ar1", AudioType.Soundcloud))
+					{
+						Id = 0,
+						PlayCount = 0,
+						Timestamp = DateTime.Now,
+						UserInvokeId = 42,
+					});
+				}
 
 				ctx.SubmitChanges();
 
 				var res = from a in x
 						  select a;
 				Console.WriteLine(string.Join("\n", res));
+
+				Console.ReadLine();
 			}
 		}
 
-		private void CreateDatabaseSchemaV1()
+		private void CheckDatabase(DataContext ctx)
 		{
+			var dbDataTableExists = ctx.ExecuteQuery<int>("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='dbdata';").First();
+			if (dbDataTableExists < 0)
+				CreateDatabaseSchemaV1(ctx);
+			if (DbMetaData == null)
+				DbMetaData = ctx.GetTable<DbMetaData>();
 
+			int fileDbVersion = int.Parse(DbMetaData.First(x => x.Key == "Version").Value);
+
+			switch (fileDbVersion)
+			{
+			//case 1:
+			//	goto case 2;
+
+			//case 2:
+			//	goto default;
+
+			case DbVersion: // Upgrade ok
+				Log.Write(Log.Level.Info, $"Database upgrade version from {fileDbVersion} to {DbVersion} ok");
+				ctx.SubmitChanges();
+				break;
+
+			default:
+				throw new InvalidOperationException("The database file version is newer than this program can read. Please update to the latest version.");
+			}
 		}
 
-		private void Create()
+		private void CreateDatabaseSchemaV1(DataContext ctx)
 		{
+			// Create MedaData Table
+			ctx.ExecuteCommand(
+				"CREATE TABLE IF NOT EXISTS dbdata (" +
+				"  Key           VARCHAR(16)  NOT NULL," +
+				"  Value         TEXT                 ," +
+				"  PRIMARY KEY (Key)," +
+				");"
+			);
+			DbMetaData = ctx.GetTable<DbMetaData>();
+			DbMetaData.InsertOnSubmit(new DbMetaData("Version", "1"));
 
+			// Create Playhistory
+			ctx.ExecuteCommand(
+				"CREATE TABLE IF NOT EXISTS playhistory (" +
+				"  Id            INTEGER      NOT NULL," +
+				"  UserInvokeId  INTEGER      NOT NULL," +
+				"  PlayCount     INTEGER      NOT NULL," +
+				"  Timestamp     DATETIME     NOT NULL," +
+				"  AudioType     VARCHAR(16)  NOT NULL," +
+				"  ResourceId    TEXT         NOT NULL," +
+				"  ResourceTitle TEXT         NOT NULL," +
+				"  PRIMARY KEY (Id)," +
+				"  UNIQUE (ResourceId)" +
+				");"
+			);
+			ctx.ExecuteCommand("CREATE INDEX ResourceId_Index ON playhistory(ResourceId)");
+
+			ctx.SubmitChanges();
 		}
 	}
 
-	[Table(Name = "PlayHistory")]
+	[Table(Name = "dbdata")]
+	internal class DbMetaData
+	{
+		[Column(IsPrimaryKey = true)] public string Key { get; set; }
+		[Column] public string Value { get; set; }
+
+		public DbMetaData() { }
+		public DbMetaData(string key, string value) { Key = key; Value = value; }
+	}
+
+	[Table(Name = "playhistory")]
 	public class AudioLogEntry2
 	{
 		/// <summary>A unique id for each <see cref="ResourceFactories.AudioResource"/>, given by the history system.</summary>
