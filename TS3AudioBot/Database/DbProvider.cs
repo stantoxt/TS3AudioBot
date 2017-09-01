@@ -1,6 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Data.Common;
+using System.Data.Entity;
+using System.Data.Entity.Infrastructure;
+using System.Data.Entity.Core.Common;
 using System.Text;
 using System.Threading.Tasks;
 using System.Data.Linq;
@@ -8,21 +12,42 @@ using System.Data.SQLite;
 using System.Data.Linq.Mapping;
 using TS3AudioBot.ResourceFactories;
 using System.Globalization;
+using System.Data;
+using System.Data.SQLite.Linq;
 
 namespace TS3AudioBot.Database
 {
 	class DbProvider
 	{
 		private const int DbVersion = 1;
-		private const string connectionString = "Data Source=MyDatabase.sqlite;Version=3;";
+		private const string connectionString = "Data Source=test.sqlite;Version=3;DbLinqProvider=sqlite;DbLinqConnectionType=System.Data.SQLite.Linq.SQLiteProviderFactory;";
 
 		private Table<DbMetaData> DbMetaData { get; set; }
 
 		public DbProvider()
 		{
-			using (var sql = new SQLiteConnection(connectionString))
+			//DbProviderFactory providerFactory = DbProviderFactories.GetFactory("System.Data.SQLite");
+			//var s3 = providerFactory.CreateConnection();
+
+			//var sql2 = SQLiteProviderFactory.Instance.CreateConnection();
+			//using ()
+			//using (var sql = new SQLiteConnection(connectionString))
 			{
-				var ctx = new DataContext(sql);
+				//sql.ConnectionString = connectionString;
+				//sql.Open();
+
+				var sdf = new SQLiteConnectionFactory();
+				var dfghh=sdf.CreateConnection(connectionString);
+				dfghh.Open();
+
+				//var asdf = System.Data.Common.DbProviderFactories.GetFactory("System.Data.SQLite");
+				//asdf.CreateConnection
+
+				var ctx = new DataContext(dfghh);
+				//ctx.
+				//System.Data.SQLite.Linq.SQLiteProviderFactory
+
+
 				ctx.Log = Console.Out;
 
 				CheckDatabase(ctx);
@@ -55,13 +80,32 @@ namespace TS3AudioBot.Database
 
 		private void CheckDatabase(DataContext ctx)
 		{
-			var dbDataTableExists = ctx.ExecuteQuery<int>("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='dbdata';").First();
-			if (dbDataTableExists < 0)
-				CreateDatabaseSchemaV1(ctx);
-			if (DbMetaData == null)
-				DbMetaData = ctx.GetTable<DbMetaData>();
+			ctx.ExecuteCommand(
+				"CREATE TABLE IF NOT EXISTS dbdata (" +
+				"  Key           VARCHAR(16)  NOT NULL," +
+				"  Value         TEXT                 ," +
+				"  PRIMARY KEY (Key)" +
+				");"
+			);
+			ctx.SubmitChanges();
 
-			int fileDbVersion = int.Parse(DbMetaData.First(x => x.Key == "Version").Value);
+			DbMetaData = ctx.GetTable<DbMetaData>();
+
+			var versionEntry = ctx.ExecuteQuery<DbMetaData>("SELECT * FROM dbdata WHERE Key='Version' LIMIT 1").FirstOrDefault();
+
+			int fileDbVersion;
+			if (versionEntry != null)
+			{
+				fileDbVersion = int.Parse(versionEntry.Value);
+			}
+			else
+			{
+				CreateDatabaseSchemaV1(ctx);
+				fileDbVersion = 1;
+			}
+
+			if (fileDbVersion == DbVersion)
+				return;
 
 			switch (fileDbVersion)
 			{
@@ -83,20 +127,11 @@ namespace TS3AudioBot.Database
 
 		private void CreateDatabaseSchemaV1(DataContext ctx)
 		{
-			// Create MedaData Table
-			ctx.ExecuteCommand(
-				"CREATE TABLE IF NOT EXISTS dbdata (" +
-				"  Key           VARCHAR(16)  NOT NULL," +
-				"  Value         TEXT                 ," +
-				"  PRIMARY KEY (Key)," +
-				");"
-			);
-			DbMetaData = ctx.GetTable<DbMetaData>();
 			DbMetaData.InsertOnSubmit(new DbMetaData("Version", "1"));
 
 			// Create Playhistory
 			ctx.ExecuteCommand(
-				"CREATE TABLE IF NOT EXISTS playhistory (" +
+				"CREATE TABLE playhistory (" +
 				"  Id            INTEGER      NOT NULL," +
 				"  UserInvokeId  INTEGER      NOT NULL," +
 				"  PlayCount     INTEGER      NOT NULL," +
@@ -111,6 +146,24 @@ namespace TS3AudioBot.Database
 			ctx.ExecuteCommand("CREATE INDEX ResourceId_Index ON playhistory(ResourceId)");
 
 			ctx.SubmitChanges();
+		}
+	}
+
+	public class SQLiteConnectionFactory : IDbConnectionFactory
+	{
+		public DbConnection CreateConnection(string nameOrConnectionString)
+		{
+			return new SQLiteConnection(nameOrConnectionString);
+		}
+	}
+
+	public class SQLiteConfiguration : DbConfiguration
+	{
+		public SQLiteConfiguration()
+		{
+			SetProviderFactory("System.Data.SQLite", SQLiteFactory.Instance);
+			SetProviderFactory("System.Data.SQLite.EF6", SQLiteProviderFactory.Instance);
+			SetProviderServices("System.Data.SQLite", (DbProviderServices)SQLiteProviderFactory.Instance.GetService(typeof(DbProviderServices)));
 		}
 	}
 
