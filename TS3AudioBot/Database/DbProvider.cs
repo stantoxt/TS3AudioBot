@@ -31,19 +31,19 @@ namespace TS3AudioBot.Database
 
 			//var sql2 = SQLiteProviderFactory.Instance.CreateConnection();
 			//using ()
-			//using (var sql = new SQLiteConnection(connectionString))
+			using (var sql = new SQLiteConnection(connectionString))
 			{
 				//sql.ConnectionString = connectionString;
-				//sql.Open();
+				sql.Open();
 
-				var sdf = new SQLiteConnectionFactory();
-				var dfghh=sdf.CreateConnection(connectionString);
-				dfghh.Open();
+				//var sdf = new SQLiteConnectionFactory();
+				//var dfghh=sdf.CreateConnection(connectionString);
+				//dfghh.Open();
 
 				//var asdf = System.Data.Common.DbProviderFactories.GetFactory("System.Data.SQLite");
 				//asdf.CreateConnection
 
-				var ctx = new DataContext(dfghh);
+				var ctx = new DataContext(sql);
 				//ctx.
 				//System.Data.SQLite.Linq.SQLiteProviderFactory
 
@@ -90,8 +90,9 @@ namespace TS3AudioBot.Database
 			ctx.SubmitChanges();
 
 			DbMetaData = ctx.GetTable<DbMetaData>();
+			var versionEntry = DbMetaData.FirstOrDefault();
 
-			var versionEntry = ctx.ExecuteQuery<DbMetaData>("SELECT * FROM dbdata WHERE Key='Version' LIMIT 1").FirstOrDefault();
+			//var versionEntry = ctx.ExecuteQuery<DbMetaData>("SELECT * FROM dbdata WHERE Key='Version' LIMIT 1").FirstOrDefault();
 
 			int fileDbVersion;
 			if (versionEntry != null)
