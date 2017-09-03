@@ -1,6 +1,8 @@
 using System;
+using System.IO;
 using System.Collections.Generic;
 using System.Linq;
+using System.Data.SqlClient;
 using System.Data.Common;
 using System.Data.Entity;
 using System.Data.Entity.Infrastructure;
@@ -20,8 +22,12 @@ namespace TS3AudioBot.Database
 	class DbProvider
 	{
 		private const int DbVersion = 1;
-		private const string connectionString = "Data Source=test.sqlite;Version=3;DbLinqProvider=sqlite;DbLinqConnectionType=System.Data.SQLite.Linq.SQLiteProviderFactory;";
-
+		//private const string connectionString = "Data Source=test.sqlite;Version=3;DbLinqProvider=sqlite;DbLinqConnectionType=System.Data.SQLite.Linq.SQLiteProviderFactory;";
+		private const string connectionString =
+			"Data Source=(LocalDB)\\MSSQLLocalDB;" +
+			"AttachDbFilename={0};" +
+			"Integrated Security=True;" +
+			"Database=db2";
 		private Table<DbMetaData> DbMetaData { get; set; }
 
 		public DbProvider()
@@ -31,19 +37,44 @@ namespace TS3AudioBot.Database
 
 			//var sql2 = SQLiteProviderFactory.Instance.CreateConnection();
 			//using ()
-			//using (var sql = new SQLiteConnection(connectionString))
+			var filePath = Path.GetFullPath("Database2.mdf");
+			var fullCon = string.Format(connectionString, filePath);
+			using (var sql = new SqlConnection(fullCon))
 			{
-				//sql.ConnectionString = connectionString;
-				//sql.Open();
+				var ctx = new TestDb(sql);
 
-				var sdf = new SQLiteConnectionFactory();
-				var dfghh=sdf.CreateConnection(connectionString);
-				dfghh.Open();
+				if (!File.Exists(filePath))
+				{
+					ctx.CreateDatabase();
+				}
+				else
+				{
+					sql.ConnectionString = fullCon;
+					sql.Open();
+				}
+				if (!ctx.DatabaseExists())
+				{
+					ctx.CreateDatabase();
+				}
+
+				//ctx.MetaData = ctx.GetTable<DbMetaData>();
+
+
+
+				//sql.ConnectionString = connectionString;
+				if (sql.State == ConnectionState.Closed)
+					sql.Open();
+				else if (sql.State != ConnectionState.Open)
+					return;
+
+
+				//var sdf = new SQLiteConnectionFactory();
+				//var dfghh=sdf.CreateConnection(connectionString);
+				//dfghh.Open();
 
 				//var asdf = System.Data.Common.DbProviderFactories.GetFactory("System.Data.SQLite");
 				//asdf.CreateConnection
 
-				var ctx = new DataContext(dfghh);
 				//ctx.
 				//System.Data.SQLite.Linq.SQLiteProviderFactory
 
@@ -80,18 +111,27 @@ namespace TS3AudioBot.Database
 
 		private void CheckDatabase(DataContext ctx)
 		{
-			ctx.ExecuteCommand(
-				"CREATE TABLE IF NOT EXISTS dbdata (" +
-				"  Key           VARCHAR(16)  NOT NULL," +
-				"  Value         TEXT                 ," +
+			if (!ctx.DatabaseExists())
+			{
+				ctx.CreateDatabase();
+			}
+
+			/*ctx.ExecuteCommand(
+				"CREATE TABLE [dbdata] (" +
+				"  [Key]           TEXT  NOT NULL," +
+				"  [Value]         TEXT                 ," +
 				"  PRIMARY KEY (Key)" +
 				");"
 			);
-			ctx.SubmitChanges();
+			ctx.SubmitChanges();*/
 
 			DbMetaData = ctx.GetTable<DbMetaData>();
+			
+			var versionEntry = DbMetaData.FirstOrDefault(x => x.Key == "Version");
+			//xxx.InsertOnSubmit(new Patient() { id = 1, name = "heeeloo" });
+			//ctx.SubmitChanges();
 
-			var versionEntry = ctx.ExecuteQuery<DbMetaData>("SELECT * FROM dbdata WHERE Key='Version' LIMIT 1").FirstOrDefault();
+			//var versionEntry = ctx.ExecuteQuery<DbMetaData>("SELECT * FROM dbdata WHERE Key='Version' LIMIT 1").FirstOrDefault();
 
 			int fileDbVersion;
 			if (versionEntry != null)
@@ -130,7 +170,7 @@ namespace TS3AudioBot.Database
 			DbMetaData.InsertOnSubmit(new DbMetaData("Version", "1"));
 
 			// Create Playhistory
-			ctx.ExecuteCommand(
+			/*ctx.ExecuteCommand(
 				"CREATE TABLE playhistory (" +
 				"  Id            INTEGER      NOT NULL," +
 				"  UserInvokeId  INTEGER      NOT NULL," +
@@ -143,7 +183,7 @@ namespace TS3AudioBot.Database
 				"  UNIQUE (ResourceId)" +
 				");"
 			);
-			ctx.ExecuteCommand("CREATE INDEX ResourceId_Index ON playhistory(ResourceId)");
+			ctx.ExecuteCommand("CREATE INDEX ResourceId_Index ON playhistory(ResourceId)");*/
 
 			ctx.SubmitChanges();
 		}
@@ -164,6 +204,17 @@ namespace TS3AudioBot.Database
 			SetProviderFactory("System.Data.SQLite", SQLiteFactory.Instance);
 			SetProviderFactory("System.Data.SQLite.EF6", SQLiteProviderFactory.Instance);
 			SetProviderServices("System.Data.SQLite", (DbProviderServices)SQLiteProviderFactory.Instance.GetService(typeof(DbProviderServices)));
+		}
+	}
+
+	[Database(Name = "testdb")]
+	internal class TestDb : DataContext
+	{
+		public Table<DbMetaData> MetaData { get; set; }
+		public Table<AudioLogEntry2> PlayHistory { get; set; }
+
+		public TestDb(IDbConnection connection) : base(connection)
+		{
 		}
 	}
 
