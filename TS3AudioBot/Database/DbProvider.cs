@@ -10,12 +10,10 @@ using System.Data.Entity.Core.Common;
 using System.Text;
 using System.Threading.Tasks;
 using System.Data.Linq;
-using System.Data.SQLite;
 using System.Data.Linq.Mapping;
 using TS3AudioBot.ResourceFactories;
 using System.Globalization;
 using System.Data;
-using System.Data.SQLite.Linq;
 
 namespace TS3AudioBot.Database
 {
@@ -186,24 +184,6 @@ namespace TS3AudioBot.Database
 			ctx.ExecuteCommand("CREATE INDEX ResourceId_Index ON playhistory(ResourceId)");*/
 
 			ctx.SubmitChanges();
-		}
-	}
-
-	public class SQLiteConnectionFactory : IDbConnectionFactory
-	{
-		public DbConnection CreateConnection(string nameOrConnectionString)
-		{
-			return new SQLiteConnection(nameOrConnectionString);
-		}
-	}
-
-	public class SQLiteConfiguration : DbConfiguration
-	{
-		public SQLiteConfiguration()
-		{
-			SetProviderFactory("System.Data.SQLite", SQLiteFactory.Instance);
-			SetProviderFactory("System.Data.SQLite.EF6", SQLiteProviderFactory.Instance);
-			SetProviderServices("System.Data.SQLite", (DbProviderServices)SQLiteProviderFactory.Instance.GetService(typeof(DbProviderServices)));
 		}
 	}
 
